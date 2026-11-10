@@ -11,21 +11,21 @@ import json
 import argparse
 from cleaner_core import AntigravityScanner, AntigravityCleaner, format_size
 
-def print_banner(lang='vi'):
+def print_banner(lang='en'):
     print("=" * 68)
-    if lang == 'en':
-        print("        🚀 Antigravity Storage Cleaner & Optimizer 🚀        ")
+    if lang == 'vi':
+        print("        Trinh Don Dep & Toi Uu Dung Luong Antigravity        ")
     else:
-        print("        🚀 Trình Dọn Dẹp & Tối Ưu Dung Lượng Antigravity 🚀        ")
+        print("        Antigravity Storage Cleaner & Optimizer        ")
     print("=" * 68)
 
 def cmd_scan(args):
-    lang = getattr(args, 'lang', 'vi')
+    lang = getattr(args, 'lang', 'en')
     print_banner(lang)
     if lang == 'en':
-        print("🔍 Scanning Antigravity storage directories...")
+        print("Scanning Antigravity storage directories...")
     else:
-        print("🔍 Đang quét các thư mục lưu trữ của Antigravity...")
+        print("Dang quet cac thu muc luu tru cua Antigravity...")
 
     scanner = AntigravityScanner()
     res = scanner.scan_all(current_session_id=args.active_id)
@@ -85,7 +85,7 @@ def cmd_scan(args):
     print("=" * 68)
 
 def cmd_clean(args):
-    lang = getattr(args, 'lang', 'vi')
+    lang = getattr(args, 'lang', 'en')
     print_banner(lang)
     cleaner = AntigravityCleaner()
     use_recycle_bin = not args.permanent
@@ -129,7 +129,7 @@ def cmd_clean(args):
             print(f"❌ Failed: {res.get('errors')}")
 
 def cmd_vacuum(args):
-    lang = getattr(args, 'lang', 'vi')
+    lang = getattr(args, 'lang', 'en')
     print_banner(lang)
     print("🗜️ Running SQLite VACUUM..." if lang == 'en' else "🗜️ Đang chạy VACUUM tối ưu hoá database...")
     cleaner = AntigravityCleaner()
@@ -144,7 +144,7 @@ def cmd_web(args):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     server_script = os.path.join(script_dir, "cleaner_server.py")
     port = str(args.port or 9922)
-    print_banner(getattr(args, 'lang', 'vi'))
+    print_banner(getattr(args, 'lang', 'en'))
     print(f"🌐 Starting Web Dashboard at http://localhost:{port}...")
     subprocess.call([sys.executable, server_script, "--port", port])
 
@@ -162,7 +162,7 @@ def main():
     parser.add_argument("--web", action="store_true", help="Launch interactive Web Dashboard")
     parser.add_argument("--port", type=int, default=9922, help="Dashboard port (default: 9922)")
     parser.add_argument("--active-id", type=str, help="Current active conversation ID to protect")
-    parser.add_argument("--lang", type=str, choices=['vi', 'en'], default='vi', help="Language (vi or en)")
+    parser.add_argument("--lang", type=str, choices=['en', 'vi'], default='en', help="Language (en or vi)")
 
     args = parser.parse_args()
 

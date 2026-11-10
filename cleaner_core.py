@@ -164,12 +164,13 @@ class AntigravityScanner:
         return any(norm_target.startswith(root + os.sep) or norm_target == root for root in allowed_roots)
 
     def get_known_conversations(self) -> Dict[str, Dict[str, Any]]:
-        """Reads conversation_summaries.db and cross-checks with FTS index to recover missing titles."""
+        """Reads conversation_summaries.db and resolves clean, meaningful titles."""
         convos = {}
         if not os.path.exists(self.summaries_db):
             return convos
 
         fts_titles = {}
+        raw_rows = []
         try:
             conn = sqlite3.connect(f"file:{self.summaries_db}?mode=ro", uri=True, timeout=5.0)
             cur = conn.cursor()
@@ -184,47 +185,109 @@ class AntigravityScanner:
 
             cur.execute("""
                 SELECT conversation_id, title, preview, step_count, last_modified_time,
-                       workspace_uris, status, nesting_depth, parent_conversation_id
+                       workspace_uris, status, nesting_depth, parent_conversation_id, agent_name
                 FROM conversation_summaries
             """)
-            for row in cur.fetchall():
-                cid, title, preview, steps, mtime, ws, status, depth, parent_id = row
-                resolved_title = title.strip() if title and title.strip() else fts_titles.get(cid, "")
-                
-                # If still empty, attempt to read first prompt from transcript
-                if not resolved_title:
-                    transcript_path = os.path.join(self.brain_dir, cid, ".system_generated", "logs", "transcript.jsonl")
-                    if os.path.exists(transcript_path):
-                        try:
-                            with open(transcript_path, "r", encoding="utf-8", errors="ignore") as tf:
-                                for line in tf:
-                                    d = json.loads(line)
-                                    if d.get("type") == "USER_INPUT":
-                                        c = d.get("content", "")
-                                        if "<USER_REQUEST>" in c:
-                                            s = c.find("<USER_REQUEST>") + 14
-                                            e = c.find("</USER_REQUEST>", s)
-                                            resolved_title = c[s:e].strip() if e != -1 else c[s:s+80].strip()
-                                        else:
-                                            resolved_title = c.strip()[:80]
-                                        break
-                        except Exception:
-                            pass
-
-                convos[cid] = {
-                    "conversation_id": cid,
-                    "title": resolved_title or "Untitled Conversation",
-                    "preview": preview or "",
-                    "step_count": steps or 0,
-                    "last_modified_time": mtime or "",
-                    "workspace_uris": ws or "",
-                    "status": status or "",
-                    "nesting_depth": depth or 0,
-                    "parent_conversation_id": parent_id or ""
-                }
+            raw_rows = cur.fetchall()
             conn.close()
         except Exception as e:
             print(f"[Scanner] Error reading conversation_summaries.db: {e}", file=sys.stderr)
+            return convos
+
+        # Pass 1: Collect valid titles for parent resolution
+        known_parent_titles = {}
+        for row in raw_rows:
+            cid = row[0]
+            title = (row[1] or "").strip()
+            preview = (row[2] or "").strip()
+            if title and title != "Untitled Conversation" and not title.startswith("Read the full file"):
+                known_parent_titles[cid] = title
+            elif preview and preview != "Untitled Conversation" and not preview.startswith("Read the full file") and not preview.startswith("{"):
+                known_parent_titles[cid] = preview[:60]
+
+        # Pass 2: Resolve clean titles for all conversations
+        for row in raw_rows:
+            cid, title, preview, steps, mtime, ws, status, depth, parent_id, agent_name = row
+            t = (title or "").strip()
+            p = (preview or "").strip()
+
+            resolved_title = None
+
+            # 1. Use title if valid and meaningful
+            if t and t != "Untitled Conversation" and not t.startswith("Read the full file") and not t.startswith("read_file"):
+                resolved_title = t
+
+            # 2. Check FTS index if title is missing
+            if not resolved_title and cid in fts_titles:
+                candidate = fts_titles[cid]
+                if candidate and candidate != "Untitled Conversation" and not candidate.startswith("Read the full file"):
+                    resolved_title = candidate
+
+            # 3. Handle subagent 'Read the full file' patterns
+            if not resolved_title and (p.startswith("Read the full file") or "Read the full file" in p):
+                m = re.search(r'[\w\-_\.]+\.(?:cs|py|ts|js|json|html|md|cpp|h|java|txt)', p)
+                filename = m.group(0) if m else "Source Code"
+                parent_t = known_parent_titles.get(parent_id)
+                ag = (agent_name or "Research").capitalize()
+                if parent_t:
+                    resolved_title = f"{ag}: {filename} ({parent_t[:30]})"
+                else:
+                    resolved_title = f"{ag} Task: {filename}"
+
+            # 4. Use preview summary if valid
+            if not resolved_title and p and p != "Untitled Conversation" and len(p) > 3 and not p.startswith("{"):
+                resolved_title = p[:65] + "..." if len(p) > 68 else p
+
+            # 5. Resolve via subagent metadata
+            if not resolved_title and (depth > 0 or agent_name):
+                parent_t = known_parent_titles.get(parent_id)
+                ag = (agent_name or "Subagent").capitalize()
+                if parent_t:
+                    resolved_title = f"{ag} task ({parent_t[:35]})"
+                else:
+                    resolved_title = f"{ag} task"
+
+            # 6. Fallback to transcript
+            if not resolved_title:
+                transcript_path = os.path.join(self.brain_dir, cid, ".system_generated", "logs", "transcript.jsonl")
+                if os.path.exists(transcript_path):
+                    try:
+                        with open(transcript_path, "r", encoding="utf-8", errors="ignore") as tf:
+                            for line in tf:
+                                d = json.loads(line)
+                                if d.get("type") == "USER_INPUT":
+                                    c = d.get("content", "")
+                                    if "<USER_REQUEST>" in c:
+                                        s = c.find("<USER_REQUEST>") + 14
+                                        e = c.find("</USER_REQUEST>", s)
+                                        raw_prompt = c[s:e].strip() if e != -1 else c[s:s+80].strip()
+                                    else:
+                                        raw_prompt = c.strip()[:80]
+                                    
+                                    # Filter prompt boilerplate
+                                    raw_prompt = raw_prompt.replace("\n", " ").replace("/plan", "").strip()
+                                    if raw_prompt and not raw_prompt.startswith("Read the full file") and len(raw_prompt) > 3:
+                                        resolved_title = raw_prompt[:65] + "..." if len(raw_prompt) > 68 else raw_prompt
+                                        break
+                    except Exception:
+                        pass
+
+            # Final clean fallback
+            if not resolved_title:
+                resolved_title = f"Session {cid[:8]}"
+
+            convos[cid] = {
+                "conversation_id": cid,
+                "title": resolved_title,
+                "preview": preview or "",
+                "step_count": steps or 0,
+                "last_modified_time": mtime or "",
+                "workspace_uris": ws or "",
+                "status": status or "",
+                "nesting_depth": depth or 0,
+                "parent_conversation_id": parent_id or ""
+            }
+
         return convos
 
     def inspect_db_purpose(self, cid: str, db_path: str, known_convos: dict) -> dict:
