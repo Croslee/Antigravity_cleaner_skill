@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Cleaner</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            zinc: {
+              850: '#1f1f23',
+              900: '#18181b',
+              950: '#09090b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #09090b;
+      color: #fafafa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Inter", sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    .custom-scroll::-webkit-scrollbar-track {
+      background: #18181b;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #3f3f46;
+      border-radius: 2px;
+    }
+    .tab-active {
+      background-color: #27272a !important;
+      color: #fafafa !important;
+      border-color: #3f3f46 !important;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col custom-scroll antialiased text-sm">
+
+  <!-- Minimalist Top Bar -->
+  <header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur sticky top-0 z-30 px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+      <div class="w-8 h-8 rounded-lg bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-100 font-semibold text-sm">
+        AC
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="font-semibold text-zinc-100 tracking-tight text-sm">Antigravity Cleaner</span>
+          <span class="text-[11px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono">v2.0</span>
+        </div>
+        <p class="text-[11px] text-zinc-500" data-i18n="tagline">Smart storage analyzer & cleanup engine</p>
+      </div>
+    </div>
+
+    <!-- Actions: Lang Toggle & Settings -->
+    <div class="flex items-center space-x-3">
+      <!-- Recycle Bin Toggle -->
+      <label class="flex items-center gap-2 cursor-pointer bg-zinc-900 border border-zinc-800 px-3 py-1.5 rounded-lg select-none hover:border-zinc-700 transition">
+        <input type="checkbox" id="recycleBinToggle" checked class="w-3.5 h-3.5 text-zinc-100 rounded bg-zinc-800 border-zinc-700 focus:ring-0">
+        <span class="text-xs text-zinc-300 font-normal" data-i18n="recycleBinLabel">Recycle Bin Guard</span>
+      </label>
+
+      <!-- Language Switcher -->
+      <div class="flex items-center bg-zinc-900 border border-zinc-800 rounded-lg p-0.5 text-xs">
+        <button onclick="setLanguage('vi')" id="langBtnVi" class="px-2.5 py-1 rounded text-xs font-medium transition">VI</button>
+        <button onclick="setLanguage('en')" id="langBtnEn" class="px-2.5 py-1 rounded text-xs font-medium transition">EN</button>
+      </div>
+
+      <!-- Refresh Scan -->
+      <button onclick="fetchScan()" id="btnRefresh" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-900 hover:bg-zinc-800 text-zinc-200 text-xs font-medium border border-zinc-800 transition">
+        <svg id="refreshSpinner" class="w-3.5 h-3.5 text-zinc-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span data-i18n="btnRescan">Rescan</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="flex-1 max-w-6xl w-full mx-auto p-6 space-y-6">
+
+    <!-- Minimalist Metrics Strip -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+      <!-- Total Storage -->
+      <div class="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4">
+        <div class="text-[11px] font-medium text-zinc-400 uppercase tracking-wider" data-i18n="metricTotal">Total Managed Storage</div>
+        <div class="mt-2 text-2xl font-semibold text-zinc-100 tracking-tight" id="statTotalSize">--</div>
+        <div class="mt-1 text-xs text-zinc-500" data-i18n="metricTotalDesc">Managed in Antigravity scope</div>
+      </div>
+
+      <!-- Safe Reclaimable -->
+      <div class="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4 relative">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-medium text-emerald-400 uppercase tracking-wider" data-i18n="metricReclaimable">Safe Reclaimable</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+        </div>
+        <div class="mt-2 text-2xl font-semibold text-emerald-400 tracking-tight" id="statReclaimableSize">--</div>
+        <div class="mt-2">
+          <button onclick="quickSafeClean()" id="btnQuickClean" class="w-full py-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition flex items-center justify-center gap-1.5">
+            <span data-i18n="btn1ClickClean">Clean Safe Trash</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Active Conversations -->
+      <div class="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4">
+        <div class="text-[11px] font-medium text-zinc-400 uppercase tracking-wider" data-i18n="metricActive">Active Conversations</div>
+        <div class="mt-2 text-2xl font-semibold text-zinc-100 tracking-tight" id="statActiveCount">--</div>
+        <div class="mt-1 text-xs text-zinc-500" data-i18n="metricActiveDesc">In Antigravity sidebar</div>
+      </div>
+
+      <!-- Orphaned DBs -->
+      <div class="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4">
+        <div class="text-[11px] font-medium text-zinc-400 uppercase tracking-wider" data-i18n="metricOrphaned">Orphaned Databases</div>
+        <div class="mt-2 text-2xl font-semibold text-zinc-100 tracking-tight" id="statOrphanedCount">--</div>
+        <div class="mt-1 text-xs text-zinc-500" data-i18n="metricOrphanedDesc">Dead branches & snapshots</div>
+      </div>
+    </div>
+
+    <!-- Storage Proportion Indicator -->
+    <div class="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4 space-y-2.5">
+      <div class="flex items-center justify-between text-xs text-zinc-400">
+        <span data-i18n="proportionTitle">Storage Distribution</span>
+        <span id="proportionStats" class="text-zinc-500 font-mono text-[11px]">Loading...</span>
+      </div>
+      <div class="h-2 w-full bg-zinc-800 rounded-full overflow-hidden flex" id="proportionBar">
+        <div class="h-full bg-zinc-500 transition-all duration-500" style="width: 100%"></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-4 text-xs text-zinc-400 pt-0.5">
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-rose-500/80"></span> <span data-i18n="legendOrphaned">Orphaned DBs</span></span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-sky-500/80"></span> <span data-i18n="legendActive">Active DBs</span></span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-amber-500/80"></span> <span data-i18n="legendLogs">Transcripts & Steps</span></span>
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-purple-500/80"></span> <span data-i18n="legendCache">System Caches</span></span>
+      </div>
+    </div>
+
+    <!-- Minimalist Segmented Tabs -->
+    <div class="flex items-center gap-1.5 p-1 bg-zinc-900 border border-zinc-800 rounded-xl w-fit">
+      <button onclick="switchTab('tabSafe')" id="tabBtnSafe" class="px-3.5 py-1.5 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 transition flex items-center gap-1.5 tab-active">
+        <span data-i18n="tabSafeTitle">Safe Cleanup</span>
+        <span id="badgeSafeCount" class="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 font-mono">0</span>
+      </button>
+
+      <button onclick="switchTab('tabConvos')" id="tabBtnConvos" class="px-3.5 py-1.5 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 transition flex items-center gap-1.5">
+        <span data-i18n="tabConvosTitle">Conversations</span>
+        <span id="badgeConvosCount" class="text-[10px] px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 font-mono">0</span>
+      </button>
+
+      <button onclick="switchTab('tabDeep')" id="tabBtnDeep" class="px-3.5 py-1.5 text-xs font-medium rounded-lg text-zinc-400 hover:text-zinc-200 transition flex items-center gap-1.5">
+        <span data-i18n="tabDeepTitle">Deep Maintenance</span>
+      </button>
+    </div>
+
+    <!-- TAB 1: SAFE CLEANUP -->
+    <section id="tabSafe" class="space-y-4">
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold text-zinc-100" data-i18n="safeHeading">Safe-to-Remove Items</h2>
+          <p class="text-xs text-zinc-400 mt-0.5" data-i18n="safeSubheading">Orphaned session branches, app caches, stale lock handles, and crash logs.</p>
+        </div>
+        <button onclick="quickSafeClean()" class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-zinc-200 text-zinc-900 font-medium text-xs transition">
+          <span data-i18n="btnCleanAllSafe">Clean All Safe Items</span>
+        </button>
+      </div>
+
+      <!-- Orphaned DBs Table -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div class="px-4 py-3 bg-zinc-850/60 border-b border-zinc-800 flex items-center justify-between text-xs">
+          <div class="font-medium text-zinc-300 flex items-center gap-2">
+            <span data-i18n="orphanedDbTitle">Orphaned Database Files</span>
+            <span class="text-zinc-500 font-normal" id="orphanedDbSummary"></span>
+          </div>
+          <span class="text-zinc-500 text-[11px]" data-i18n="orphanedDbNote">Not referenced by conversation_summaries.db</span>
+        </div>
+        <div class="overflow-x-auto max-h-80 custom-scroll">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-850 text-zinc-400 sticky top-0 border-b border-zinc-800 text-[11px]">
+              <tr>
+                <th class="py-2.5 px-4 font-medium" data-i18n="colFileId">File / ID</th>
+                <th class="py-2.5 px-4 font-medium" data-i18n="colOriginPurpose">Origin & Original Purpose</th>
+                <th class="py-2.5 px-4 font-medium" data-i18n="colSize">Size</th>
+                <th class="py-2.5 px-4 font-medium" data-i18n="colLastModified">Last Modified</th>
+                <th class="py-2.5 px-4 font-medium text-right" data-i18n="colAction">Action</th>
+              </tr>
+            </thead>
+            <tbody id="orphanedDbTableBody" class="divide-y divide-zinc-800/80 text-zinc-300">
+              <tr><td colspan="5" class="p-6 text-center text-zinc-500" data-i18n="msgLoading">Loading data...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- App Caches & Stale Files Grid -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <!-- App Caches -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div class="text-xs font-medium text-zinc-300 flex items-center justify-between">
+            <span data-i18n="cacheTitle">Application Caches</span>
+            <span class="text-zinc-400 font-mono text-[11px]" id="appCacheSummary"></span>
+          </div>
+          <div class="space-y-2 text-xs" id="appCacheList">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+
+        <!-- Stale System -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div class="text-xs font-medium text-zinc-300 flex items-center justify-between">
+            <span data-i18n="staleTitle">Stale System Handles & Sockets</span>
+            <span class="text-zinc-400 font-mono text-[11px]" id="staleSummary"></span>
+          </div>
+          <div class="space-y-2 text-xs" id="staleList">
+            <!-- Populated via JS -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: CONVERSATIONS -->
+    <section id="tabConvos" class="space-y-4 hidden">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-semibold text-zinc-100" data-i18n="convosHeading">Active Conversations</h2>
+          <p class="text-xs text-zinc-400 mt-0.5" data-i18n="convosSubheading">Inspect active sessions to selectively delete or slim intermediate steps.</p>
+        </div>
+
+        <!-- Filter Controls -->
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="text" id="convoSearchInput" placeholder="Filter by title or ID..." oninput="filterConversations()" class="px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-zinc-700">
+          
+          <select id="convoAgeFilter" onchange="filterConversations()" class="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 focus:outline-none">
+            <option value="all" data-i18n="filterAllTime">All Time</option>
+            <option value="7" data-i18n="filter7Days">> 7 days ago</option>
+            <option value="14" data-i18n="filter14Days">> 14 days ago</option>
+            <option value="30" data-i18n="filter30Days">> 30 days ago</option>
+          </select>
+
+          <select id="convoSortFilter" onchange="filterConversations()" class="px-2.5 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-xs text-zinc-300 focus:outline-none">
+            <option value="size_desc" data-i18n="sortLargest">Largest First</option>
+            <option value="date_desc" data-i18n="sortNewest">Newest First</option>
+            <option value="date_asc" data-i18n="sortOldest">Oldest First</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Conversations Table -->
+      <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+        <div class="overflow-x-auto max-h-[500px] custom-scroll">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-zinc-850 text-zinc-400 sticky top-0 border-b border-zinc-800 text-[11px] z-10">
+              <tr>
+                <th class="py-2.5 px-4 font-medium" data-i18n="colConvoTitle">Session Title & Workspace</th>
+                <th class="py-2.5 px-3 font-medium" data-i18n="colSteps">Steps</th>
+                <th class="py-2.5 px-3 font-medium" data-i18n="colLastActive">Last Active</th>
+                <th class="py-2.5 px-3 font-medium" data-i18n="colDbSize">DB Size</th>
+                <th class="py-2.5 px-3 font-medium" data-i18n="colBrainSize">Brain Size</th>
+                <th class="py-2.5 px-3 font-medium" data-i18n="colTotal">Total</th>
+                <th class="py-2.5 px-4 font-medium text-right" data-i18n="colAction">Action</th>
+              </tr>
+            </thead>
+            <tbody id="convoTableBody" class="divide-y divide-zinc-800/80 text-zinc-300">
+              <tr><td colspan="7" class="p-6 text-center text-zinc-500" data-i18n="msgLoadingConvos">Loading conversations...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: DEEP MAINTENANCE -->
+    <section id="tabDeep" class="space-y-4 hidden">
+      <div>
+        <h2 class="text-sm font-semibold text-zinc-100" data-i18n="deepHeading">Deep Storage Maintenance</h2>
+        <p class="text-xs text-zinc-400 mt-0.5" data-i18n="deepSubheading">Compress databases, defragment freed pages, and clean intermediate tool trajectories.</p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Intermediate Steps -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-200 flex items-center justify-center font-medium text-xs">
+              JSON
+            </div>
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-100" data-i18n="deepStepsTitle">Intermediate Steps (.steps)</h3>
+              <p class="text-[11px] text-zinc-500" data-i18n="deepStepsDesc">Per-step tool execution history files</p>
+            </div>
+          </div>
+          <div class="p-3 bg-zinc-850/60 border border-zinc-800 rounded-lg text-xs space-y-1.5 text-zinc-300">
+            <div class="flex justify-between"><span class="text-zinc-400" data-i18n="labelStepsCount">Step files count:</span> <b class="font-mono" id="deepStepsCount">--</b></div>
+            <div class="flex justify-between"><span class="text-zinc-400" data-i18n="labelStepsSize">Total steps size:</span> <b class="font-mono text-zinc-100" id="deepStepsSize">--</b></div>
+            <div class="flex justify-between"><span class="text-zinc-400" data-i18n="labelScratchSize">Scratch & temp dumps:</span> <b class="font-mono" id="deepScratchSize">--</b></div>
+          </div>
+          <p class="text-[11px] text-zinc-500 leading-relaxed" data-i18n="deepStepsTip">
+            Slimming intermediate steps keeps chat text intact in the Antigravity UI while freeing up thousands of tiny fragmented files.
+          </p>
+        </div>
+
+        <!-- SQLite VACUUM -->
+        <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-4 space-y-3">
+          <div class="flex items-center space-x-2.5">
+            <div class="w-8 h-8 rounded-lg bg-zinc-800 text-zinc-200 flex items-center justify-center font-medium text-xs">
+              SQL
+            </div>
+            <div>
+              <h3 class="text-xs font-semibold text-zinc-100" data-i18n="deepVacuumTitle">SQLite Database Defragmentation</h3>
+              <p class="text-[11px] text-zinc-500" data-i18n="deepVacuumDesc">Reclaim free SQLite database pages via VACUUM</p>
+            </div>
+          </div>
+          <p class="text-[11px] text-zinc-400 leading-relaxed" data-i18n="deepVacuumTip">
+            When entries or sessions are deleted, SQLite preserves empty pages for reuse. Running VACUUM compacts the database file and reclaims physical disk storage.
+          </p>
+          <button onclick="runVacuum()" id="btnVacuum" class="w-full py-2 px-3 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-medium text-xs border border-zinc-700 transition flex items-center justify-center gap-2">
+            <span data-i18n="btnRunVacuum">Run VACUUM Now</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Inspection / Detail Modal -->
+  <div id="modalDetail" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+      <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+        <h3 class="text-sm font-semibold text-zinc-100" id="detailModalTitle">Item Details</h3>
+        <button onclick="closeDetailModal()" class="text-zinc-500 hover:text-zinc-300 text-lg leading-none">&times;</button>
+      </div>
+      <div class="space-y-2.5 text-xs text-zinc-300" id="detailModalBody">
+        <!-- Injected via JS -->
+      </div>
+      <div class="flex justify-end pt-2">
+        <button onclick="closeDetailModal()" class="px-3.5 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-medium transition" data-i18n="btnClose">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirmation Modal -->
+  <div id="modalConfirm" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+    <div class="bg-zinc-900 border border-zinc-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      <div class="space-y-1">
+        <h3 class="text-sm font-semibold text-zinc-100" id="modalTitle">Confirm Action</h3>
+        <p class="text-xs text-zinc-400" id="modalSubtitle">Please review details before proceeding.</p>
+      </div>
+
+      <div class="bg-zinc-850 p-3.5 rounded-lg text-xs space-y-2 text-zinc-300 border border-zinc-800" id="modalDetails">
+        <!-- Injected via JS -->
+      </div>
+
+      <div class="flex justify-end space-x-2 pt-1">
+        <button onclick="closeModal()" class="px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-medium transition" data-i18n="btnCancel">Cancel</button>
+        <button id="modalConfirmBtn" class="px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-medium transition" data-i18n="btnConfirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Toast -->
+  <div id="toast" class="fixed bottom-5 right-5 z-50 bg-zinc-850 border border-zinc-700 text-zinc-100 text-xs py-2.5 px-4 rounded-lg shadow-xl flex items-center gap-2.5 transition-all duration-300 transform translate-y-16 opacity-0 pointer-events-none">
+    <span id="toastIcon">✓</span>
+    <span id="toastMsg">Operation successful</span>
+  </div>
+
+  <!-- Bilingual Logic & Client Scripts -->
+  <script>
+    // Bilingual Dictionary
+    const i18n = {
+      vi: {
+        tagline: "Trình phân tích & dọn dẹp dung lượng thông minh",
+        recycleBinLabel: "Bảo vệ Thùng rác (Recycle Bin)",
+        btnRescan: "Quét lại",
+        metricTotal: "Tổng Dung Lượng Antigravity",
+        metricTotalDesc: "Trong phạm vi quản lý của Antigravity",
+        metricReclaimable: "Rác An Toàn Có Thể Thu Hồi",
+        btn1ClickClean: "⚡ Dọn Dẹp Rác An Toàn",
+        metricActive: "Hội Thoại Đang Hoạt Động",
+        metricActiveDesc: "Hiển thị trên sidebar Antigravity",
+        metricOrphaned: "Database Mồ Côi",
+        metricOrphanedDesc: "Nhánh phụ & snapshot cũ đã đóng",
+        proportionTitle: "Phân Bổ Dung Lượng Chi Tiết",
+        legendOrphaned: "DB Mồ côi (Rác)",
+        legendActive: "Active DBs",
+        legendLogs: "Transcripts & Steps",
+        legendCache: "Cache Hệ thống",
+        tabSafeTitle: "Rác An Toàn",
+        tabConvosTitle: "Quản Lý Hội Thoại",
+        tabDeepTitle: "Tối Ưu Nâng Cao",
+        safeHeading: "Danh Sách Mục Rác An Toàn Có Thể Giải Phóng",
+        safeSubheading: "Bao gồm các database mồ côi từ phiên đã đóng, cache ứng dụng, lock cũ và crash logs.",
+        btnCleanAllSafe: "⚡ Dọn dẹp toàn bộ mục an toàn",
+        orphanedDbTitle: "Database Hội thoại mồ côi",
+        orphanedDbNote: "Không còn liên kết trong conversation_summaries.db",
+        colFileId: "Tên File / ID",
+        colOriginPurpose: "Nguồn gốc / Từng dùng làm gì",
+        colSize: "Dung lượng",
+        colLastModified: "Ngày sửa cuối",
+        colAction: "Tác vụ",
+        cacheTitle: "Cache Ứng Dụng (Chromium / GPU)",
+        staleTitle: "File Khoá & Socket Rác",
+        convosHeading: "Hội Thoại Đang Hoạt Động",
+        convosSubheading: "Xem xét từng hội thoại để xoá hoàn toàn hoặc tỉa gọn (Slim) các bước chạy nặng.",
+        filterAllTime: "Tất cả thời gian",
+        filter7Days: "> 7 ngày trước",
+        filter14Days: "> 14 ngày trước",
+        filter30Days: "> 30 ngày trước",
+        sortLargest: "Dung lượng lớn nhất",
+        sortNewest: "Mới nhất",
+        sortOldest: "Cũ nhất",
+        colConvoTitle: "Tiêu đề Hội thoại & Workspace",
+        colSteps: "Số bước",
+        colLastActive: "Hoạt động cuối",
+        colDbSize: "DB Size",
+        colBrainSize: "Brain Size",
+        colTotal: "Tổng cộng",
+        deepHeading: "Tối Ưu Hoá Nâng Cao & Gom Dọn",
+        deepSubheading: "Gom gọn database, chống phân mảnh trang nhớ và dọn dẹp file steps trung gian.",
+        deepStepsTitle: "File Bước Chạy Trung Gian (.steps)",
+        deepStepsDesc: "Nhật ký chi tiết các lệnh tool đã chạy",
+        labelStepsCount: "Số lượng file steps:",
+        labelStepsSize: "Tổng dung lượng steps:",
+        labelScratchSize: "Scratch & temp dumps:",
+        deepStepsTip: "Tỉa gọn file steps trung gian giúp giải phóng hàng chục nghìn file nhỏ mà vẫn giữ nguyên vẹn 100% nội dung chat trên Antigravity UI.",
+        deepVacuumTitle: "Gom Dọn SQLite Database (VACUUM)",
+        deepVacuumDesc: "Thu hồi các trang nhớ trống vật lý",
+        deepVacuumTip: "Khi bản ghi bị xoá, SQLite giữ lại các trang nhớ trống. Lệnh VACUUM sẽ dồn gọn và trả lại dung lượng thực tế cho ổ cứng.",
+        btnRunVacuum: "🗜️ Chạy VACUUM Database Ngay",
+        btnCancel: "Huỷ bỏ",
+        btnConfirm: "Xác nhận thực hiện",
+        btnClose: "Đóng",
+        msgLoading: "Đang tải dữ liệu...",
+        msgLoadingConvos: "Đang tải danh sách hội thoại...",
+        msgNoOrphans: "✨ Không còn database mồ côi nào! Rất sạch sẽ.",
+        statusProtected: "Đang mở",
+        statusReady: "Sẵn sàng xoá",
+        actionInspect: "Xem chi tiết",
+        actionSlim: "Tỉa gọn",
+        actionDelete: "Xoá",
+        activeProtectedTag: "Bảo vệ"
+      },
+      en: {
+        tagline: "Smart storage analyzer & cleanup engine",
+        recycleBinLabel: "Recycle Bin Guard",
+        btnRescan: "Rescan",
+        metricTotal: "Total Managed Storage",
+        metricTotalDesc: "Managed in Antigravity scope",
+        metricReclaimable: "Safe Reclaimable",
+        btn1ClickClean: "⚡ Clean Safe Trash",
+        metricActive: "Active Conversations",
+        metricActiveDesc: "In Antigravity sidebar",
+        metricOrphaned: "Orphaned Databases",
+        metricOrphanedDesc: "Dead branches & snapshots",
+        proportionTitle: "Storage Distribution",
+        legendOrphaned: "Orphaned DBs",
+        legendActive: "Active DBs",
+        legendLogs: "Transcripts & Steps",
+        legendCache: "System Caches",
+        tabSafeTitle: "Safe Cleanup",
+        tabConvosTitle: "Conversations",
+        tabDeepTitle: "Deep Maintenance",
+        safeHeading: "Safe-to-Remove Items",
+        safeSubheading: "Includes orphaned branches from terminated sessions, app caches, stale locks, and crash logs.",
+        btnCleanAllSafe: "⚡ Clean All Safe Items",
+        orphanedDbTitle: "Orphaned Database Files",
+        orphanedDbNote: "Not referenced by conversation_summaries.db",
+        colFileId: "File / ID",
+        colOriginPurpose: "Origin & Original Purpose",
+        colSize: "Size",
+        colLastModified: "Last Modified",
+        colAction: "Action",
+        cacheTitle: "Application Caches (Chromium / GPU)",
+        staleTitle: "Stale System Handles & Sockets",
+        convosHeading: "Active Conversations",
+        convosSubheading: "Inspect active sessions to selectively delete or slim intermediate steps.",
+        filterAllTime: "All Time",
+        filter7Days: "> 7 days ago",
+        filter14Days: "> 14 days ago",
+        filter30Days: "> 30 days ago",
+        sortLargest: "Largest First",
+        sortNewest: "Newest First",
+        sortOldest: "Oldest First",
+        colConvoTitle: "Session Title & Workspace",
+        colSteps: "Steps",
+        colLastActive: "Last Active",
+        colDbSize: "DB Size",
+        colBrainSize: "Brain Size",
+        colTotal: "Total",
+        deepHeading: "Deep Storage Maintenance",
+        deepSubheading: "Compact databases, defragment freed pages, and clean intermediate tool trajectories.",
+        deepStepsTitle: "Intermediate Steps (.steps)",
+        deepStepsDesc: "Per-step tool execution history files",
+        labelStepsCount: "Step files count:",
+        labelStepsSize: "Total steps size:",
+        labelScratchSize: "Scratch & temp dumps:",
+        deepStepsTip: "Slimming intermediate steps keeps chat text intact in the Antigravity UI while freeing up thousands of tiny fragmented files.",
+        deepVacuumTitle: "SQLite Database Defragmentation",
+        deepVacuumDesc: "Reclaim free SQLite database pages via VACUUM",
+        deepVacuumTip: "When entries or sessions are deleted, SQLite preserves empty pages for reuse. Running VACUUM compacts the database file and reclaims physical disk storage.",
+        btnRunVacuum: "🗜️ Run VACUUM Now",
+        btnCancel: "Cancel",
+        btnConfirm: "Confirm",
+        btnClose: "Close",
+        msgLoading: "Loading data...",
+        msgLoadingConvos: "Loading conversations...",
+        msgNoOrphans: "✨ No orphaned databases found! Clean and optimal.",
+        statusProtected: "In Use",
+        statusReady: "Ready to clean",
+        actionInspect: "Inspect",
+        actionSlim: "Slim",
+        actionDelete: "Delete",
+        activeProtectedTag: "Protected"
+      }
+    };
+
+    let currentLang = localStorage.getItem('antigravity_cleaner_lang') || 'vi';
+    let globalScanData = null;
+
+    function setLanguage(lang) {
+      currentLang = lang;
+      localStorage.setItem('antigravity_cleaner_lang', lang);
+      document.documentElement.lang = lang;
+
+      // Update toggle buttons styling
+      if (lang === 'vi') {
+        document.getElementById('langBtnVi').className = 'px-2.5 py-1 rounded text-xs font-semibold bg-zinc-800 text-zinc-100 transition';
+        document.getElementById('langBtnEn').className = 'px-2.5 py-1 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 transition';
+      } else {
+        document.getElementById('langBtnEn').className = 'px-2.5 py-1 rounded text-xs font-semibold bg-zinc-800 text-zinc-100 transition';
+        document.getElementById('langBtnVi').className = 'px-2.5 py-1 rounded text-xs font-medium text-zinc-400 hover:text-zinc-200 transition';
+      }
+
+      // Update DOM with data-i18n
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (i18n[lang] && i18n[lang][key]) {
+          el.innerText = i18n[lang][key];
+        }
+      });
+
+      if (globalScanData) {
+        renderData(globalScanData);
+      }
+    }
+
+    // Switch Tabs
+    function switchTab(tabId) {
+      ['tabSafe', 'tabConvos', 'tabDeep'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(tabId).classList.remove('hidden');
+
+      ['tabBtnSafe', 'tabBtnConvos', 'tabBtnDeep'].forEach(btnId => {
+        document.getElementById(btnId).classList.remove('tab-active');
+      });
+      if (tabId === 'tabSafe') document.getElementById('tabBtnSafe').classList.add('tab-active');
+      if (tabId === 'tabConvos') document.getElementById('tabBtnConvos').classList.add('tab-active');
+      if (tabId === 'tabDeep') document.getElementById('tabBtnDeep').classList.add('tab-active');
+    }
+
+    // Show Toast
+    function showToast(msg, icon = '✓') {
+      const toast = document.getElementById('toast');
+      document.getElementById('toastMsg').innerText = msg;
+      document.getElementById('toastIcon').innerText = icon;
+      toast.classList.remove('translate-y-16', 'opacity-0', 'pointer-events-none');
+      setTimeout(() => {
+        toast.classList.add('translate-y-16', 'opacity-0', 'pointer-events-none');
+      }, 4000);
+    }
+
+    // Fetch Scan Data
+    async function fetchScan() {
+      const spinner = document.getElementById('refreshSpinner');
+      spinner.classList.add('animate-spin');
+
+      try {
+        const res = await fetch('/api/scan');
+        const json = await res.json();
+        if (json.success) {
+          globalScanData = json.data;
+          renderData(json.data);
+          showToast(currentLang === 'vi' ? 'Đã quét xong dữ liệu lưu trữ!' : 'Storage scan completed!');
+        } else {
+          showToast('Error: ' + json.error, '✕');
+        }
+      } catch (err) {
+        showToast('Connection error: ' + err, '✕');
+      } finally {
+        spinner.classList.remove('animate-spin');
+      }
+    }
+
+    // Render Data into UI
+    function renderData(data) {
+      const t = i18n[currentLang];
+      const sum = data.summary;
+      const safe = data.safe_items;
+      const deep = data.deep_stats;
+
+      document.getElementById('statTotalSize').innerText = sum.total_managed_str;
+      document.getElementById('statReclaimableSize').innerText = sum.safe_reclaimable_str;
+      document.getElementById('statActiveCount').innerText = sum.active_conversations_count;
+      document.getElementById('statOrphanedCount').innerText = sum.orphaned_conversations_count;
+
+      // Proportion bar
+      const totalB = Math.max(1, sum.total_managed_bytes);
+      const orphPct = Math.round((safe.orphaned_dbs_bytes / totalB) * 100);
+      const cachePct = Math.round((safe.app_caches_bytes / totalB) * 100);
+      const actDbB = data.active_conversations.reduce((acc, c) => acc + c.db_bytes, 0);
+      const actPct = Math.round((actDbB / totalB) * 100);
+      const logsPct = Math.max(1, 100 - orphPct - cachePct - actPct);
+
+      document.getElementById('proportionBar').innerHTML = `
+        <div class="h-full bg-rose-500/80" style="width: ${orphPct}%" title="${t.legendOrphaned}: ${safe.orphaned_dbs_str}"></div>
+        <div class="h-full bg-sky-500/80" style="width: ${actPct}%" title="${t.legendActive}"></div>
+        <div class="h-full bg-amber-500/80" style="width: ${logsPct}%" title="${t.legendLogs}: ${deep.logs_str}"></div>
+        <div class="h-full bg-purple-500/80" style="width: ${cachePct}%" title="${t.legendCache}: ${safe.app_caches_str}"></div>
+      `;
+      document.getElementById('proportionStats').innerText = `${orphPct + cachePct}% reclaimable`;
+
+      document.getElementById('badgeSafeCount').innerText = `${safe.orphaned_dbs.length + safe.app_caches.length}`;
+      document.getElementById('badgeConvosCount').innerText = `${data.active_conversations.length}`;
+
+      // Tab 1: Orphaned DBs Table
+      document.getElementById('orphanedDbSummary').innerText = `(${safe.orphaned_dbs_str} • ${safe.orphaned_dbs.length} files)`;
+      const tbody = document.getElementById('orphanedDbTableBody');
+      if (safe.orphaned_dbs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-emerald-400/90 font-medium">${t.msgNoOrphans}</td></tr>`;
+      } else {
+        tbody.innerHTML = safe.orphaned_dbs.map((item, idx) => {
+          const categoryText = currentLang === 'en' ? (item.category_en || item.category || 'Orphaned') : (item.category_vi || item.category || 'Mồ côi');
+          const topicText = currentLang === 'en' ? (item.topic_en || item.topic || 'Stale record') : (item.topic_vi || item.topic || 'Bản ghi cũ');
+
+          return `
+            <tr class="hover:bg-zinc-850/50 transition">
+              <td class="py-2.5 px-4 font-mono text-zinc-300">
+                <span class="text-zinc-500 mr-1">#</span>${item.filename.slice(0, 14)}...
+              </td>
+              <td class="py-2.5 px-4 max-w-sm">
+                <div class="truncate text-zinc-200 cursor-pointer" onclick="openDetailModal(${idx})" title="${topicText}">
+                  <span class="px-1.5 py-0.2 rounded text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700/60 mr-1.5">${categoryText}</span>
+                  ${topicText}
+                </div>
+              </td>
+              <td class="py-2.5 px-4 font-mono text-zinc-200 whitespace-nowrap">${item.size_str}</td>
+              <td class="py-2.5 px-4 text-zinc-400 whitespace-nowrap">${item.mtime_str}</td>
+              <td class="py-2.5 px-4 text-right whitespace-nowrap space-x-1.5">
+                <button onclick="openDetailModal(${idx})" class="text-[11px] px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 transition">${t.actionInspect}</button>
+                ${item.is_protected ? `<span class="px-1.5 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">${t.statusProtected}</span>` : `<span class="text-zinc-500 text-[11px]">${t.statusReady}</span>`}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+
+      // Tab 1: App Caches List
+      document.getElementById('appCacheSummary').innerText = safe.app_caches_str;
+      const cacheList = document.getElementById('appCacheList');
+      cacheList.innerHTML = safe.app_caches.map(c => `
+        <div class="flex items-center justify-between p-2 rounded-lg bg-zinc-850/50 border border-zinc-800/80">
+          <div>
+            <div class="font-medium text-zinc-200 text-xs">${currentLang === 'en' ? (c.name_en || c.name) : (c.name_vi || c.name)}</div>
+            <div class="text-[11px] text-zinc-500">${currentLang === 'en' ? (c.desc_en || c.description) : (c.desc_vi || c.description)} (${c.file_count} files)</div>
+          </div>
+          <span class="font-mono text-zinc-300 text-xs">${c.size_str}</span>
+        </div>
+      `).join('');
+
+      // Tab 1: Stale System Files
+      document.getElementById('staleSummary').innerText = `${safe.stale_system.length} files (${safe.stale_system_str})`;
+      const staleList = document.getElementById('staleList');
+      staleList.innerHTML = `
+        <div class="flex items-center justify-between p-2 rounded-lg bg-zinc-850/50 border border-zinc-800/80">
+          <div>
+            <div class="font-medium text-zinc-200 text-xs">${currentLang === 'en' ? 'Stale Presence Locks & Daemon Hubs' : 'File khoá phiên cũ & Socket daemon'}</div>
+            <div class="text-[11px] text-zinc-500">${currentLang === 'en' ? 'Unused lock handles from closed sessions' : 'File lock và hub PID của phiên làm việc cũ'}</div>
+          </div>
+          <span class="font-mono text-zinc-400 text-xs">${safe.stale_system.length} files</span>
+        </div>
+      `;
+
+      // Tab 2: Conversations
+      filterConversations();
+
+      // Tab 3: Deep Stats
+      document.getElementById('deepStepsCount').innerText = `${deep.steps_count} files`;
+      document.getElementById('deepStepsSize').innerText = deep.steps_str;
+      document.getElementById('deepScratchSize').innerText = deep.scratch_str;
+    }
+
+    // Filter Conversations
+    function filterConversations() {
+      if (!globalScanData) return;
+      const query = document.getElementById('convoSearchInput').value.toLowerCase().trim();
+      const ageVal = document.getElementById('convoAgeFilter').value;
+      const sortVal = document.getElementById('convoSortFilter').value;
+
+      let list = [...globalScanData.active_conversations];
+
+      if (query) {
+        list = list.filter(c => c.title.toLowerCase().includes(query) || c.conversation_id.toLowerCase().includes(query) || c.workspace.toLowerCase().includes(query));
+      }
+
+      if (ageVal !== 'all') {
+        const days = parseInt(ageVal);
+        const cutoff = Date.now() - days * 24 * 3600 * 1000;
+        list = list.filter(c => {
+          if (!c.last_modified || c.last_modified === 'Unknown') return true;
+          const dt = new Date(c.last_modified.replace(' ', 'T')).getTime();
+          return dt < cutoff;
+        });
+      }
+
+      if (sortVal === 'size_desc') {
+        list.sort((a, b) => b.total_bytes - a.total_bytes);
+      } else if (sortVal === 'date_desc') {
+        list.sort((a, b) => (b.last_modified || '').localeCompare(a.last_modified || ''));
+      } else if (sortVal === 'date_asc') {
+        list.sort((a, b) => (a.last_modified || '').localeCompare(b.last_modified || ''));
+      }
+
+      renderConvoTable(list);
+    }
+
+    // Render Conversation Table
+    function renderConvoTable(list) {
+      const t = i18n[currentLang];
+      const tbody = document.getElementById('convoTableBody');
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-zinc-500">${currentLang === 'en' ? 'No conversations match the filter.' : 'Không tìm thấy cuộc hội thoại phù hợp.'}</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(c => `
+        <tr class="hover:bg-zinc-850/50 transition">
+          <td class="py-2.5 px-4 max-w-xs">
+            <div class="font-medium text-zinc-200 truncate flex items-center gap-1.5" title="${c.title}">
+              ${c.title}
+              ${c.is_protected ? `<span class="px-1.5 py-0.2 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20 text-[10px]">${t.activeProtectedTag}</span>` : ''}
+            </div>
+            <div class="text-[11px] text-zinc-500 truncate mt-0.5">
+              ${c.workspace} • <span class="font-mono">${c.conversation_id.slice(0, 8)}...</span>
+            </div>
+          </td>
+          <td class="py-2.5 px-3 font-mono text-zinc-400">${c.step_count}</td>
+          <td class="py-2.5 px-3 text-zinc-400 whitespace-nowrap">${c.last_modified}</td>
+          <td class="py-2.5 px-3 font-mono text-zinc-300">${c.db_str}</td>
+          <td class="py-2.5 px-3 font-mono text-zinc-400">${c.brain_str}</td>
+          <td class="py-2.5 px-3 font-mono font-medium text-zinc-100">${c.total_str}</td>
+          <td class="py-2.5 px-4 text-right space-x-1 whitespace-nowrap">
+            ${c.can_slim && !c.is_protected ? `
+              <button onclick="confirmSlim('${c.conversation_id}', '${c.title.replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-amber-300/90 text-[11px] transition">
+                ${t.actionSlim}
+              </button>
+            ` : ''}
+
+            ${!c.is_protected ? `
+              <button onclick="confirmDeleteConvo('${c.conversation_id}', '${c.title.replace(/'/g, "\\'")}')" class="px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 text-rose-400 text-[11px] transition">
+                ${t.actionDelete}
+              </button>
+            ` : `
+              <span class="text-zinc-600 text-[11px] italic">${t.activeProtectedTag}</span>
+            `}
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    // Open Detail Modal for an Orphaned DB
+    function openDetailModal(idx) {
+      if (!globalScanData || !globalScanData.safe_items.orphaned_dbs[idx]) return;
+      const item = globalScanData.safe_items.orphaned_dbs[idx];
+      const isEn = currentLang === 'en';
+
+      document.getElementById('detailModalTitle').innerText = isEn ? 'Orphaned Database Inspection' : 'Chi Tiết Database Mồ Côi';
+
+      const categoryText = isEn ? (item.category_en || item.category) : (item.category_vi || item.category);
+      const topicText = isEn ? (item.topic_en || item.topic) : (item.topic_vi || item.topic);
+
+      document.getElementById('detailModalBody').innerHTML = `
+        <div class="p-2.5 bg-zinc-850 rounded-lg space-y-1.5 border border-zinc-800">
+          <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'File Name:' : 'Tên tập tin:'}</span> <span class="font-mono text-zinc-200">${item.filename}</span></div>
+          <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Size on disk:' : 'Kích thước trên đĩa:'}</span> <b class="font-mono text-zinc-100">${item.size_str}</b></div>
+          <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Last Modified:' : 'Sửa đổi lần cuối:'}</span> <span class="text-zinc-300">${item.mtime_str}</span></div>
+          <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Classification:' : 'Phân loại:'}</span> <span class="px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 font-medium">${categoryText}</span></div>
+          ${item.parent_title ? `<div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Parent Session:' : 'Phiên làm việc gốc:'}</span> <span class="text-zinc-200 font-medium">${item.parent_title}</span></div>` : ''}
+          ${item.parent_id ? `<div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Parent UUID:' : 'UUID phiên gốc:'}</span> <span class="font-mono text-zinc-500">${item.parent_id}</span></div>` : ''}
+        </div>
+
+        <div class="space-y-1">
+          <div class="text-[11px] text-zinc-400 font-medium">${isEn ? 'Recorded Context / User Request:' : 'Ngữ cảnh ghi nhận / Yêu cầu gốc:'}</div>
+          <div class="p-2.5 bg-zinc-850 rounded-lg text-zinc-300 border border-zinc-800 text-xs leading-relaxed max-h-40 overflow-y-auto custom-scroll">
+            ${topicText || (isEn ? 'No textual prompt recovered' : 'Không tìm thấy nội dung văn bản')}
+          </div>
+        </div>
+
+        <div class="text-[11px] text-zinc-500">
+          ${isEn ? 'Path: ' + item.path : 'Đường dẫn: ' + item.path}
+        </div>
+      `;
+
+      document.getElementById('modalDetail').classList.remove('hidden');
+    }
+
+    function closeDetailModal() {
+      document.getElementById('modalDetail').classList.add('hidden');
+    }
+
+    // Show Confirmation Modal
+    function showModal(title, subtitle, detailsHtml, onConfirm) {
+      document.getElementById('modalTitle').innerText = title;
+      document.getElementById('modalSubtitle').innerText = subtitle;
+      document.getElementById('modalDetails').innerHTML = detailsHtml;
+
+      const confirmBtn = document.getElementById('modalConfirmBtn');
+      confirmBtn.onclick = () => {
+        closeModal();
+        onConfirm();
+      };
+
+      document.getElementById('modalConfirm').classList.remove('hidden');
+    }
+
+    function closeModal() {
+      document.getElementById('modalConfirm').classList.add('hidden');
+    }
+
+    // Action 1: Quick Safe Clean
+    function quickSafeClean() {
+      if (!globalScanData) return;
+      const safe = globalScanData.safe_items;
+      const useRecycleBin = document.getElementById('recycleBinToggle').checked;
+      const isEn = currentLang === 'en';
+      const binText = useRecycleBin ? (isEn ? 'Windows Recycle Bin (100% Safe)' : 'Thùng rác Windows (An toàn 100%)') : (isEn ? 'Permanent Deletion' : 'Xoá vĩnh viễn');
+
+      const html = `
+        <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Space to be freed:' : 'Dung lượng sẽ giải phóng:'}</span> <b class="text-emerald-400">${safe.orphaned_dbs_str}</b></div>
+        <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Orphaned DBs count:' : 'Số DB mồ côi:'}</span> <span class="font-mono">${safe.orphaned_dbs.length} files</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Application Caches:' : 'Cache ứng dụng:'}</span> <span class="font-mono">${safe.app_caches_str}</span></div>
+        <div class="flex justify-between"><span class="text-zinc-400">${isEn ? 'Deletion Method:' : 'Phương thức xoá:'}</span> <span class="font-medium text-zinc-200">${binText}</span></div>
+      `;
+
+      showModal(
+        isEn ? 'Confirm Safe Cleanup' : 'Xác nhận dọn dẹp rác an toàn',
+        isEn ? 'Clean orphaned session files and application caches.' : 'Dọn dẹp các database mồ côi và bộ nhớ đệm ứng dụng.',
+        html,
+        async () => {
+          showToast(isEn ? 'Cleaning safe items...' : 'Đang dọn dẹp rác an toàn...', '⏳');
+          try {
+            const res = await fetch('/api/clean-safe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ dry_run: false, use_recycle_bin: useRecycleBin })
+            });
+            const json = await res.json();
+            if (json.success) {
+              showToast(isEn ? `Success! Freed ${json.freed_str}.` : `Thành công! Đã giải phóng ${json.freed_str}.`);
+              fetchScan();
+            } else {
+              showToast('Error: ' + (json.errors || []).join(', '), '✕');
+            }
+          } catch (err) {
+            showToast('Error: ' + err, '✕');
+          }
+        }
+      );
+    }
+
+    // Action 2: Delete Conversation
+    function confirmDeleteConvo(cid, title) {
+      const useRecycleBin = document.getElementById('recycleBinToggle').checked;
+      const isEn = currentLang === 'en';
+      const html = `
+        <div class="space-y-1">
+          <div class="text-zinc-400">${isEn ? 'Are you sure you want to permanently delete session:' : 'Bạn có chắc chắn muốn xoá hoàn toàn phiên:'}</div>
+          <div class="font-semibold text-zinc-100">"${title}"</div>
+          <div class="text-[11px] font-mono text-zinc-500">ID: ${cid}</div>
+        </div>
+      `;
+
+      showModal(
+        isEn ? 'Delete Conversation' : 'Xác nhận xoá hội thoại',
+        isEn ? 'This removes the SQLite database and brain folder.' : 'Thao tác sẽ xoá file DB và brain folder của phiên này.',
+        html,
+        async () => {
+          showToast(isEn ? 'Deleting conversation...' : 'Đang xoá hội thoại...', '⏳');
+          try {
+            const res = await fetch('/api/delete-convo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ conversation_id: cid, dry_run: false, use_recycle_bin: useRecycleBin })
+            });
+            const json = await res.json();
+            if (json.success) {
+              showToast(isEn ? `Deleted conversation, freed ${json.freed_str}.` : `Đã xoá hội thoại, giải phóng ${json.freed_str}.`);
+              fetchScan();
+            } else {
+              showToast('Error: ' + json.error, '✕');
+            }
+          } catch (err) {
+            showToast('Error: ' + err, '✕');
+          }
+        }
+      );
+    }
+
+    // Action 3: Slim Conversation
+    function confirmSlim(cid, title) {
+      const useRecycleBin = document.getElementById('recycleBinToggle').checked;
+      const isEn = currentLang === 'en';
+      const html = `
+        <div class="space-y-1">
+          <div class="text-zinc-400">${isEn ? 'Slimming intermediate steps for:' : 'Tỉa gọn file steps & scratch cho:'}</div>
+          <div class="font-semibold text-zinc-100">"${title}"</div>
+          <p class="text-[11px] text-zinc-400 mt-2">${isEn ? 'Full chat history in the UI remains completely intact!' : 'Toàn bộ nội dung chat trên UI vẫn được bảo toàn nguyên vẹn!'}</p>
+        </div>
+      `;
+
+      showModal(
+        isEn ? 'Slim Conversation Steps' : 'Tỉa gọn hội thoại (Slim)',
+        isEn ? 'Removes heavy per-step JSON files and temporary scratch dumps.' : 'Xoá các file JSON bước chạy trung gian để tiết kiệm dung lượng.',
+        html,
+        async () => {
+          showToast(isEn ? 'Slimming steps...' : 'Đang tỉa gọn...', '⏳');
+          try {
+            const res = await fetch('/api/slim-convo', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ conversation_id: cid, dry_run: false, use_recycle_bin: useRecycleBin })
+            });
+            const json = await res.json();
+            if (json.success) {
+              showToast(isEn ? `Slimmed successfully! Freed ${json.freed_str}.` : `Đã tỉa gọn thành công! Giải phóng ${json.freed_str}.`);
+              fetchScan();
+            } else {
+              showToast('Error: ' + json.errors, '✕');
+            }
+          } catch (err) {
+            showToast('Error: ' + err, '✕');
+          }
+        }
+      );
+    }
+
+    // Action 4: Run VACUUM
+    async function runVacuum() {
+      const isEn = currentLang === 'en';
+      const btn = document.getElementById('btnVacuum');
+      btn.disabled = true;
+      btn.innerText = isEn ? 'Running VACUUM...' : 'Đang chạy VACUUM...';
+      showToast(isEn ? 'Defragmenting database...' : 'Đang tối ưu hoá database...', '⏳');
+
+      try {
+        const res = await fetch('/api/vacuum', { method: 'POST' });
+        const json = await res.json();
+        if (json.success) {
+          showToast(isEn ? `VACUUM complete! Reclaimed ${json.freed_str}.` : `Hoàn tất VACUUM! Đã thu hồi thêm ${json.freed_str}.`);
+          fetchScan();
+        } else {
+          showToast('Error: ' + json.error, '✕');
+        }
+      } catch (err) {
+        showToast('Error: ' + err, '✕');
+      } finally {
+        btn.disabled = false;
+        btn.innerText = isEn ? '🗜️ Run VACUUM Now' : '🗜️ Chạy VACUUM Database Ngay';
+      }
+    }
+
+    // Initialize Language and Scan
+    setLanguage(currentLang);
+    fetchScan();
+  </script>
+</body>
+</html>

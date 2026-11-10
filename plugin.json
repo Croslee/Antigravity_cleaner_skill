@@ -1,0 +1,15 @@
+{
+  "name": "antigravity-storage-cleaner",
+  "version": "1.0.0",
+  "description": "Smart disk storage analyzer, orphaned data cleaner, and conversation manager for Antigravity with an intuitive visual dashboard.",
+  "author": {
+    "name": "Antigravity Assistant"
+  },
+  "keywords": [
+    "cleaner",
+    "storage",
+    "disk-space",
+    "conversation-manager",
+    "cache-cleanup"
+  ]
+}
