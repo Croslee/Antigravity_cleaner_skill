@@ -2,18 +2,21 @@
 
 A lightweight storage management tool and Antigravity skill designed to analyze local storage consumption, reclaim orphaned conversation databases, prune intermediate step logs, and defragment SQLite databases.
 
+![Antigravity Storage Cleaner](https://img.shields.io/badge/Antigravity-Plugin%20%26%20Skill-blue)
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue?logo=python)
+![Bilingual](https://img.shields.io/badge/Language-English%20%7C%20Ti%E1%BA%BFng%20Vi%E1%BB%87t-emerald)
+
 ---
 
-## Overview
+## The Problem
 
-Google Antigravity saves trajectories, SQLite databases, and execution logs under the user application directory. Over time, these files accumulate significantly:
+During active coding sessions, Google Antigravity creates checkpoints, SQLite databases, and per-step execution logs:
+- **Orphaned Snapshot Clones**: Every time a complex task or subagent is triggered, Antigravity creates a full copy of the conversation database (often 200MB - 350MB each). When the task finishes, Antigravity unlinks the session from the UI, but **leaves the physical `.db` file behind**.
+- **Inline Side Questions**: Quick questions asked in editor tooltips create temporary database branches that remain on disk indefinitely.
+- **Micro Step Logs**: A single active session can generate over 25,000 tiny JSON files in `.system_generated/steps/` and massive `transcript_full.jsonl` files.
+- **Application Caches**: Chromium/Electron caches (`GPUCache`, `Code Cache`) accumulate over time.
 
-1. **Orphaned Snapshot Clones**: During complex workflows and subagent executions, Antigravity creates full clones of the parent conversation database (typically 200 MB to 350 MB each). When the task finishes, the reference is removed from the sidebar index, but the physical `.db` file remains on disk indefinitely.
-2. **Inline Editor Side Questions**: Quick questions asked in editor tooltips create temporary database branches that are abandoned upon closing the widget.
-3. **Micro Step Files**: A single active session can accumulate tens of thousands of JSON files in `.system_generated/steps/` alongside massive transcript files.
-4. **Application Caches**: Chromium/Electron caches (`GPUCache`, `Code Cache`) grow continuously.
-
-This tool classifies all stored files, identifies their original purpose, and provides an interactive dashboard and command-line interface to reclaim gigabytes of storage safely.
+It is common for Antigravity to silently consume **10 GB to 20 GB+** of disk space without the user knowing which files are safe to delete and which are vital.
 
 ---
 
